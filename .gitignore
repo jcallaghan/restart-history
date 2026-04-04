@@ -1,0 +1,22 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Rider
+.idea/
+
+# Publish artifacts
+*.exe
+*.pdb
+*.dll
+!src/**/Assets/**
