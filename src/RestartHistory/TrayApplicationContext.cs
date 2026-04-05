@@ -48,6 +48,12 @@ public class TrayApplicationContext : ApplicationContext
         _uptimeTimer.Tick += (_, _) => UpdateTooltip();
         _uptimeTimer.Start();
 
+        // Handle toast notification clicks — open the flyout
+        ToastNotificationManagerCompat.OnActivated += toastArgs =>
+        {
+            System.Windows.Application.Current?.Dispatcher.Invoke(ShowPopup);
+        };
+
         ShowBootToast();
 
         // Initialize Copilot SDK in background
@@ -197,6 +203,11 @@ public class TrayApplicationContext : ApplicationContext
             return;
         }
 
+        ShowPopup();
+    }
+
+    private void ShowPopup()
+    {
         RefreshData();
         UpdateIcon();
         UpdateTooltip();

@@ -79,9 +79,9 @@
 
         <Grid Margin="16,14,16,16">
             <!-- ══════════ PAGE: MAIN (original dashboard) ══════════ -->
-            <StackPanel x:Name="MainPage">
+            <DockPanel x:Name="MainPage">
                 <!-- Title bar -->
-                <Grid Margin="0,0,0,10">
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
@@ -115,7 +115,7 @@
                 </Grid>
 
                 <!-- AI Summary (at top when available) -->
-                <Border x:Name="SummaryPreviewCard" Visibility="Collapsed"
+                <Border x:Name="SummaryPreviewCard" DockPanel.Dock="Top" Visibility="Collapsed"
                         Background="{StaticResource CardBrush}" CornerRadius="8"
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                         Padding="12,10" Margin="0,0,0,6">
@@ -160,7 +160,7 @@
                 </Border>
 
                 <!-- Stat tiles -->
-                <Grid Margin="0,0,0,6">
+                <Grid DockPanel.Dock="Top" Margin="0,0,0,6">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/><ColumnDefinition Width="6"/>
                         <ColumnDefinition Width="*"/><ColumnDefinition Width="6"/>
@@ -210,7 +210,7 @@
                 </Grid>
 
                 <!-- Activity -->
-                <Border Background="{StaticResource CardBrush}" CornerRadius="8"
+                <Border DockPanel.Dock="Top" Background="{StaticResource CardBrush}" CornerRadius="8"
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                         Padding="12,10" Margin="0,0,0,6">
                     <StackPanel>
@@ -234,7 +234,7 @@
                 </Border>
 
                 <!-- Distribution -->
-                <Border Background="{StaticResource CardBrush}" CornerRadius="8"
+                <Border DockPanel.Dock="Top" Background="{StaticResource CardBrush}" CornerRadius="8"
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
                         Padding="12,10" Margin="0,0,0,6">
                     <StackPanel>
@@ -248,13 +248,13 @@
                     </StackPanel>
                 </Border>
 
-                <!-- History -->
+                <!-- History (fills remaining space) -->
                 <Border Background="{StaticResource CardBrush}" CornerRadius="8"
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Padding="12,10">
-                    <StackPanel>
-                        <TextBlock Text="History" Style="{StaticResource SectionHeading}" Margin="0,0,0,6"/>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="History" Style="{StaticResource SectionHeading}" Margin="0,0,0,6"/>
                         <ScrollViewer Style="{StaticResource ThemedScrollViewer}"
-                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="180">
+                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <ItemsControl x:Name="HistoryList" Background="Transparent">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
@@ -303,9 +303,9 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
-                    </StackPanel>
+                    </DockPanel>
                 </Border>
-            </StackPanel>
+            </DockPanel>
 
             <!-- ══════════ PAGE: SUMMARY (full AI insights) ══════════ -->
             <DockPanel x:Name="SummaryPage" Visibility="Collapsed">
