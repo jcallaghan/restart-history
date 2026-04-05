@@ -131,7 +131,6 @@ restart-history/
 │   ├── Program.cs        # Entry point
 │   └── App.xaml          # WPF application
 ├── RestartHistory.sln
-├── PRD.md                # Product requirements document
 └── README.md
 ```
 
