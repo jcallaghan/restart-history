@@ -5,11 +5,11 @@ using System.IO;
 using System.Text.Json;
 using System.Windows.Forms;
 using Microsoft.Toolkit.Uwp.Notifications;
-using RebootWatch.Models;
-using RebootWatch.Services;
-using RebootWatch.Views;
+using RestartWatch.Models;
+using RestartWatch.Services;
+using RestartWatch.Views;
 
-namespace RebootWatch;
+namespace RestartWatch;
 
 public class TrayApplicationContext : ApplicationContext
 {
@@ -17,15 +17,15 @@ public class TrayApplicationContext : ApplicationContext
     private readonly System.Windows.Forms.Timer _uptimeTimer;
     private readonly CopilotInsightsService _copilot = new();
     private HistoryPopup? _popup;
-    private List<RebootEvent> _history = new();
+    private List<RestartEvent> _history = new();
     private DateTime _lastBootTime;
-    private RebootEvent? _lastReboot;
+    private RestartEvent? _lastReboot;
     private bool _aiInsightsEnabled;
     private ToolStripMenuItem? _aiMenuItem;
 
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "RebootWatch", "settings.json");
+        "RestartWatch", "settings.json");
 
     public TrayApplicationContext()
     {
@@ -71,17 +71,17 @@ public class TrayApplicationContext : ApplicationContext
     private void RefreshData()
     {
         _lastBootTime = BootInfoProvider.GetLastBootTime();
-        _history = RebootClassifier.GetRebootHistory(30);
+        _history = RestartClassifier.GetRestartHistory(30);
         _lastReboot = _history.Count > 0 ? _history[0] : null;
     }
 
     private void UpdateIcon()
     {
-        var severity = _lastReboot?.Severity ?? RebootSeverity.Green;
+        var severity = _lastReboot?.Severity ?? RestartSeverity.Green;
         _notifyIcon.Icon = severity switch
         {
-            RebootSeverity.Red => GenerateIcon(Color.FromArgb(244, 67, 54)),
-            RebootSeverity.Yellow => GenerateIcon(Color.FromArgb(255, 193, 7)),
+            RestartSeverity.Red => GenerateIcon(Color.FromArgb(244, 67, 54)),
+            RestartSeverity.Yellow => GenerateIcon(Color.FromArgb(255, 193, 7)),
             _ => GenerateIcon(Color.FromArgb(76, 175, 80))
         };
     }
@@ -94,7 +94,7 @@ public class TrayApplicationContext : ApplicationContext
         // Use system regional date/time format
         var bootStr = _lastBootTime.ToString("g"); // short date + short time per regional settings
 
-        var tooltip = $"Last boot: {bootStr}\nUptime: {uptimeStr}\nCause: {cause}";
+        var tooltip = $"Last restart: {bootStr}\nUptime: {uptimeStr}\nCause: {cause}";
         if (tooltip.Length > 127)
             tooltip = tooltip[..127];
 
@@ -122,7 +122,7 @@ public class TrayApplicationContext : ApplicationContext
             ToastNotificationManagerCompat.History.Clear();
 
             new ToastContentBuilder()
-                .AddArgument("action", "viewReboot")
+                .AddArgument("action", "viewRestart")
                 .AddText($"Last restart: {cause}")
                 .AddText($"Booted: {bootStr} ({relative})")
                 .Show();

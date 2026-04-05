@@ -4,36 +4,38 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using RebootWatch.Models;
-using RebootWatch.Services;
+using RestartWatch.Models;
+using RestartWatch.Services;
 using WinForms = System.Windows.Forms;
 
-namespace RebootWatch.Views;
+namespace RestartWatch.Views;
 
 public partial class HistoryPopup : Window
 {
-    private static readonly Dictionary<RebootCause, System.Windows.Media.Color> CauseColors = new()
+    private static readonly Dictionary<RestartCause, System.Windows.Media.Color> CauseColors = new()
     {
-        [RebootCause.WindowsUpdate] = System.Windows.Media.Color.FromRgb(0x00, 0x78, 0xD4),
-        [RebootCause.UserShutdown] = System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50),
-        [RebootCause.SoftwareInstall] = System.Windows.Media.Color.FromRgb(0x9C, 0x27, 0xB0),
-        [RebootCause.NormalBoot] = System.Windows.Media.Color.FromRgb(0x60, 0x7D, 0x8B),
-        [RebootCause.UnexpectedShutdown] = System.Windows.Media.Color.FromRgb(0xFF, 0xC1, 0x07),
-        [RebootCause.PowerLoss] = System.Windows.Media.Color.FromRgb(0xFF, 0x98, 0x00),
-        [RebootCause.Bsod] = System.Windows.Media.Color.FromRgb(0xF4, 0x43, 0x36),
-        [RebootCause.Unknown] = System.Windows.Media.Color.FromRgb(0x60, 0x7D, 0x8B),
+        [RestartCause.WindowsUpdate] = System.Windows.Media.Color.FromRgb(0x00, 0x78, 0xD4),
+        [RestartCause.UserShutdown] = System.Windows.Media.Color.FromRgb(0x4C, 0xAF, 0x50),
+        [RestartCause.SoftwareInstall] = System.Windows.Media.Color.FromRgb(0x9C, 0x27, 0xB0),
+        [RestartCause.NormalBoot] = System.Windows.Media.Color.FromRgb(0x60, 0x7D, 0x8B),
+        [RestartCause.UnexpectedShutdown] = System.Windows.Media.Color.FromRgb(0xFF, 0xC1, 0x07),
+        [RestartCause.PowerLoss] = System.Windows.Media.Color.FromRgb(0xFF, 0x98, 0x00),
+        [RestartCause.Bsod] = System.Windows.Media.Color.FromRgb(0xF4, 0x43, 0x36),
+        [RestartCause.Unknown] = System.Windows.Media.Color.FromRgb(0x60, 0x7D, 0x8B),
     };
 
-    private readonly List<RebootEvent> _history;
+    private readonly List<RestartEvent> _history;
     private readonly CopilotInsightsService? _copilot;
     private int _periodDays = 14;
     private DispatcherTimer? _loadingTimer;
+    private System.Drawing.Point? _anchor;
 
-    public HistoryPopup(DateTime lastBootTime, List<RebootEvent> history,
+    public HistoryPopup(DateTime lastBootTime, List<RestartEvent> history,
         System.Drawing.Point? anchor = null, CopilotInsightsService? copilot = null)
     {
         _history = history;
         _copilot = copilot;
+        _anchor = anchor;
         InitializeComponent();
         ApplyTheme();
 
@@ -43,7 +45,7 @@ public partial class HistoryPopup : Window
 
         var uptime = DateTime.Now - lastBootTime;
         var lastReboot = history.Count > 0 ? history[0] : null;
-        var severity = lastReboot?.Severity ?? RebootSeverity.Green;
+        var severity = lastReboot?.Severity ?? RestartSeverity.Green;
 
         // Stat tiles
         StatBootTime.Text = lastBootTime.ToString("HH:mm");
@@ -99,14 +101,33 @@ public partial class HistoryPopup : Window
             SizeToContent = SizeToContent.Manual;
             MinHeight = ActualHeight;
             Height = ActualHeight;
+
+            // Reposition when display settings change (monitor resize, dock/undock)
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         };
+
+        Closed += (_, _) =>
+        {
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        };
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            if (_anchor.HasValue)
+                PositionNearTray(_anchor.Value);
+            else
+                PositionNearTaskbar();
+        });
     }
 
     private void StartLoadingAnimation()
     {
         LoadingIndicator.Visibility = Visibility.Visible;
         SummaryScrollViewer.Visibility = Visibility.Collapsed;
-        LoadingText.Text = "Analyzing reboot history...";
+        LoadingText.Text = "Analyzing restart history...";
         SummaryFullText.Text = "Generating insights...";
         
         // Animate loading bar
@@ -184,11 +205,11 @@ public partial class HistoryPopup : Window
 
     private void HistoryItem_Click(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Border border || border.Tag is not RebootEvent reboot)
+        if (sender is not Border border || border.Tag is not RestartEvent reboot)
             return;
 
         // Only explain non-green (concerning) events
-        if (reboot.Severity == RebootSeverity.Green || _copilot == null || !_copilot.IsAvailable)
+        if (reboot.Severity == RestartSeverity.Green || _copilot == null || !_copilot.IsAvailable)
             return;
 
         // Update heading to show the event type
@@ -237,7 +258,7 @@ public partial class HistoryPopup : Window
         _summaryPageLoadingTimer.Start();
 
         var result = new System.Text.StringBuilder();
-        _ = _copilot.ExplainRebootAsync(
+        _ = _copilot.ExplainRestartAsync(
             reboot,
             onToken: token => Dispatcher.Invoke(() =>
             {
@@ -302,15 +323,15 @@ public partial class HistoryPopup : Window
         Btn30d.Foreground = active == 30 ? a : s; Btn30d.FontWeight = active == 30 ? FontWeights.Bold : FontWeights.Normal;
     }
 
-    private SolidColorBrush GetSeverityBrush(RebootSeverity sev) => sev switch
+    private SolidColorBrush GetSeverityBrush(RestartSeverity sev) => sev switch
     {
-        RebootSeverity.Red => (SolidColorBrush)Resources["SevErrorBrush"],
-        RebootSeverity.Yellow => (SolidColorBrush)Resources["SevWarnBrush"],
+        RestartSeverity.Red => (SolidColorBrush)Resources["SevErrorBrush"],
+        RestartSeverity.Yellow => (SolidColorBrush)Resources["SevWarnBrush"],
         _ => (SolidColorBrush)Resources["SevOkBrush"]
     };
 
     // ── Activity strip ──
-    private void RenderActivityStrip(List<RebootEvent> history)
+    private void RenderActivityStrip(List<RestartEvent> history)
     {
         var today = DateTime.Today;
         void Render() { ActivityStrip.Children.Clear(); DoRenderActivityStrip(history, today); }
@@ -319,9 +340,9 @@ public partial class HistoryPopup : Window
     }
 
     private DateTime? _selectedActivityDate;
-    private List<RebootEvent>? _filteredHistory;
+    private List<RestartEvent>? _filteredHistory;
 
-    private void DoRenderActivityStrip(List<RebootEvent> history, DateTime today)
+    private void DoRenderActivityStrip(List<RestartEvent> history, DateTime today)
     {
         _filteredHistory = history;
         var parent = ActivityStrip.Parent as FrameworkElement;
@@ -332,16 +353,16 @@ public partial class HistoryPopup : Window
         if (maxSquares < 7) maxSquares = 7;
         int totalDays = Math.Min(maxSquares, _periodDays);
 
-        var dayData = new Dictionary<DateTime, (int count, RebootSeverity worst)>();
+        var dayData = new Dictionary<DateTime, (int count, RestartSeverity worst)>();
         for (int i = 0; i < totalDays; i++)
-            dayData[today.AddDays(-(totalDays - 1) + i)] = (0, RebootSeverity.Green);
+            dayData[today.AddDays(-(totalDays - 1) + i)] = (0, RestartSeverity.Green);
         foreach (var evt in history)
         {
             var day = evt.Timestamp.Date;
             if (!dayData.ContainsKey(day)) continue;
             var (c, w) = dayData[day]; c++;
-            if (evt.Severity == RebootSeverity.Red) w = RebootSeverity.Red;
-            else if (evt.Severity == RebootSeverity.Yellow && w != RebootSeverity.Red) w = RebootSeverity.Yellow;
+            if (evt.Severity == RestartSeverity.Red) w = RestartSeverity.Red;
+            else if (evt.Severity == RestartSeverity.Yellow && w != RestartSeverity.Red) w = RestartSeverity.Yellow;
             dayData[day] = (c, w);
         }
 
@@ -362,7 +383,7 @@ public partial class HistoryPopup : Window
                 Width = squareSize, Height = squareSize, CornerRadius = new CornerRadius(3),
                 Background = fill,
                 Margin = new Thickness(i == 0 ? 0 : gap / 2, 0, gap / 2, 0),
-                ToolTip = $"{date:d}: {count} reboot{(count != 1 ? "s" : "")}",
+                ToolTip = $"{date:d}: {count} restart{(count != 1 ? "s" : "")}",
                 BorderBrush = isSelected ? (SolidColorBrush)Resources["AccentBrush"]
                              : isToday ? (SolidColorBrush)Resources["HighlightBrush"] : null,
                 BorderThickness = (isSelected || isToday) ? new Thickness(2) : new Thickness(0),
@@ -491,7 +512,7 @@ public partial class HistoryPopup : Window
     }
 
     // ── Distribution ──
-    private void RenderBreakdown(List<RebootEvent> history)
+    private void RenderBreakdown(List<RestartEvent> history)
     {
         if (history.Count == 0) return;
         var groups = history.GroupBy(e => e.Cause)

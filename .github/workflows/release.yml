@@ -20,14 +20,14 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Publish
-        run: dotnet publish src/RebootWatch -r win-x64 --self-contained -p:PublishSingleFile=true -c Release -o ./publish
+        run: dotnet publish src/RestartWatch -r win-x64 --self-contained -p:PublishSingleFile=true -c Release -o ./publish
 
       - name: Zip release
-        run: Compress-Archive -Path ./publish/RebootWatch.exe -DestinationPath ./RebootWatch-v${{ github.ref_name }}-win-x64.zip
+        run: Compress-Archive -Path ./publish/RestartWatch.exe -DestinationPath ./RestartWatch-${{ github.ref_name }}-win-x64.zip
         shell: pwsh
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./RebootWatch-*.zip
+          files: ./RestartWatch-*.zip
           generate_release_notes: true

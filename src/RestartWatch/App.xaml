@@ -1,4 +1,4 @@
-<Application x:Class="RebootWatch.App"
+<Application x:Class="RestartWatch.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnExplicitShutdown">

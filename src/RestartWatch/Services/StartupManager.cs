@@ -1,11 +1,11 @@
 using Microsoft.Win32;
 
-namespace RebootWatch.Services;
+namespace RestartWatch.Services;
 
 public static class StartupManager
 {
     private const string RunKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-    private const string AppName = "RebootWatch";
+    private const string AppName = "RestartWatch";
 
     public static bool IsStartupEnabled()
     {
@@ -20,7 +20,7 @@ public static class StartupManager
 
         if (enabled)
         {
-            var exePath = Environment.ProcessPath ?? System.IO.Path.Combine(AppContext.BaseDirectory, "RebootWatch.exe");
+            var exePath = Environment.ProcessPath ?? System.IO.Path.Combine(AppContext.BaseDirectory, "RestartWatch.exe");
             key.SetValue(AppName, $"\"{exePath}\"");
         }
         else

@@ -11,15 +11,15 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <AssemblyName>RebootWatch</AssemblyName>
-    <AssemblyTitle>Reboot Watch</AssemblyTitle>
-    <Product>Reboot Watch</Product>
-    <Version>1.0.0</Version>
-    <Description>Lightweight Windows system tray utility to monitor reboot history, causes, and patterns.</Description>
+    <AssemblyName>RestartWatch</AssemblyName>
+    <AssemblyTitle>Restart Watch</AssemblyTitle>
+    <Product>Restart Watch</Product>
+    <Version>2.0.0</Version>
+    <Description>Lightweight Windows system tray utility that monitors your restart history, classifies causes, and surfaces patterns.</Description>
     <Authors>James Callaghan</Authors>
-    <RepositoryUrl>https://github.com/jcallaghan/reboot-watch</RepositoryUrl>
-    <RootNamespace>RebootWatch</RootNamespace>
-    <StartupObject>RebootWatch.Program</StartupObject>
+    <RepositoryUrl>https://github.com/jcallaghan/restart-watch</RepositoryUrl>
+    <RootNamespace>RestartWatch</RootNamespace>
+    <StartupObject>RestartWatch.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>

@@ -5,9 +5,9 @@ using System.Text;
 using System.Text.Json;
 using GitHub.Copilot.SDK;
 using Microsoft.Extensions.AI;
-using RebootWatch.Models;
+using RestartWatch.Models;
 
-namespace RebootWatch.Services;
+namespace RestartWatch.Services;
 
 /// <summary>
 /// Provides AI-powered reboot insights via the GitHub Copilot SDK.
@@ -40,14 +40,14 @@ public class CopilotInsightsService : IAsyncDisposable
     }
 
     /// <summary>Gets a cached explanation for a reboot event, or null if not cached.</summary>
-    public string? GetCachedExplanation(RebootEvent evt) =>
+    public string? GetCachedExplanation(RestartEvent evt) =>
         _eventExplanationCache.TryGetValue(GetEventKey(evt), out var explanation) ? explanation : null;
 
     /// <summary>Caches an explanation for a reboot event.</summary>
-    public void CacheExplanation(RebootEvent evt, string explanation) =>
+    public void CacheExplanation(RestartEvent evt, string explanation) =>
         _eventExplanationCache[GetEventKey(evt)] = explanation;
 
-    private static string GetEventKey(RebootEvent evt) => $"{evt.Timestamp:o}_{evt.EventId}";
+    private static string GetEventKey(RestartEvent evt) => $"{evt.Timestamp:o}_{evt.EventId}";
 
     public static bool IsCopilotAvailable()
     {
@@ -117,8 +117,8 @@ public class CopilotInsightsService : IAsyncDisposable
     /// Analyze a single reboot event and return a plain-English explanation.
     /// Streams tokens via the onToken callback.
     /// </summary>
-    public async Task ExplainRebootAsync(
-        RebootEvent reboot,
+    public async Task ExplainRestartAsync(
+        RestartEvent reboot,
         Action<string> onToken,
         Action onComplete,
         Action<string> onError)
@@ -139,8 +139,8 @@ public class CopilotInsightsService : IAsyncDisposable
                 SystemMessage = new SystemMessageConfig
                 {
                     Mode = SystemMessageMode.Replace,
-                    Content = @"You are a Windows system analyst embedded in a system tray utility called Reboot Watch.
-When given a Windows reboot event, explain what caused it and whether it's concerning.
+                    Content = @"You are a Windows system analyst embedded in a system tray utility called Restart Watch.
+When given a Windows restart event, explain what caused it and whether it's concerning.
 Use plain English. Do NOT use markdown formatting, headers, or bullet points.
 Write in 2-3 short paragraphs.
 
@@ -173,7 +173,7 @@ Do NOT mention the OS version or build number in your response - focus on the ev
                 }
             });
 
-            var prompt = $@"Explain this Windows reboot event (no markdown, no OS version mentions):
+            var prompt = $@"Explain this Windows restart event (no markdown, no OS version mentions):
 - Date: {reboot.Timestamp:g}
 - Classification: {reboot.CauseLabel}
 - Severity: {reboot.Severity}
@@ -196,7 +196,7 @@ If there are error codes, explain what they mean and potential causes.";
     /// Generates both a short summary (1-2 sentences) and detailed analysis.
     /// </summary>
     public async Task AnalyzePatternsAsync(
-        List<RebootEvent> history,
+        List<RestartEvent> history,
         Action<string> onShortSummary,
         Action<string> onDetailedSummary,
         Action onComplete,
@@ -212,7 +212,7 @@ If there are error codes, explain what they mean and potential causes.";
         {
             var osInfo = GetOsInfo();
             
-            // First: Generate short summary focused on most recent reboot
+            // First: Generate short summary focused on most recent restart
             await using var shortSession = await _client.CreateSessionAsync(new SessionConfig
             {
                 Model = "gpt-4o",
@@ -221,8 +221,8 @@ If there are error codes, explain what they mean and potential causes.";
                 SystemMessage = new SystemMessageConfig
                 {
                     Mode = SystemMessageMode.Replace,
-                    Content = @"You are a Windows system analyst. Write 1-2 sentences about the MOST RECENT reboot event.
-Explain what caused the most recent reboot and whether it's normal or concerning.
+                    Content = @"You are a Windows system analyst. Write 1-2 sentences about the MOST RECENT restart event.
+Explain what caused the most recent restart and whether it's normal or concerning.
 You may briefly mention the overall pattern (e.g., 'part of regular update cycle') for context.
 No bullet points, markdown, or headers. Plain English only.
 Do NOT mention OS version or build number."
@@ -234,17 +234,17 @@ Do NOT mention OS version or build number."
             if (history.Count > 0)
             {
                 var recent = history[0];
-                shortSb.AppendLine($"Most recent reboot: {recent.Timestamp:g} | {recent.CauseLabel} | {recent.Severity}");
+                shortSb.AppendLine($"Most recent restart: {recent.Timestamp:g} | {recent.CauseLabel} | {recent.Severity}");
                 shortSb.AppendLine($"Detail: {recent.Detail}");
                 shortSb.AppendLine();
-                shortSb.AppendLine($"Context: {history.Count} total reboots in period:");
+                shortSb.AppendLine($"Context: {history.Count} total restarts in period:");
                 foreach (var evt in history.Skip(1).Take(5))
                     shortSb.AppendLine($"- {evt.Timestamp:g} | {evt.CauseLabel}");
                 if (history.Count > 6)
                     shortSb.AppendLine($"...and {history.Count - 6} more");
             }
             shortSb.AppendLine();
-            shortSb.AppendLine("Summarize the most recent reboot in 1-2 sentences with brief context:");
+            shortSb.AppendLine("Summarize the most recent restart in 1-2 sentences with brief context:");
 
             var shortDone = new TaskCompletionSource();
             var shortResult = new StringBuilder();
@@ -276,13 +276,13 @@ Do NOT mention OS version or build number."
                 SystemMessage = new SystemMessageConfig
                 {
                     Mode = SystemMessageMode.Replace,
-                    Content = @"You are a Windows system analyst embedded in a system tray utility called Reboot Watch.
-Provide a HOLISTIC analysis of the entire reboot history in 2-4 short paragraphs.
+                    Content = @"You are a Windows system analyst embedded in a system tray utility called Restart Watch.
+Provide a HOLISTIC analysis of the entire restart history in 2-4 short paragraphs.
 Cover: overall health trends, recurring patterns, frequency analysis, problematic event clusters, and general recommendations.
 If you see crash events with error codes, explain what they mean and potential causes.
 Use plain English. Do NOT use bullet points, numbered lists, markdown headers (##), or any formatting.
 Write naturally in flowing paragraph form. Keep paragraphs short (2-3 sentences each).
-Do NOT mention the operating system version, build number, or hardware specs - focus only on holistic reboot patterns."
+Do NOT mention the operating system version, build number, or hardware specs - focus only on holistic restart patterns."
                 },
                 InfiniteSessions = new InfiniteSessionConfig { Enabled = false },
             });
@@ -307,7 +307,7 @@ Do NOT mention the operating system version, build number, or hardware specs - f
             });
 
             var detailSb = new StringBuilder();
-            detailSb.AppendLine("Provide a holistic analysis of these Windows reboot events (no markdown):");
+            detailSb.AppendLine("Provide a holistic analysis of these Windows restart events (no markdown):");
             detailSb.AppendLine();
             foreach (var evt in history)
                 detailSb.AppendLine($"- {evt.Timestamp:g} | {evt.CauseLabel} | Severity: {evt.Severity} | EventID: {evt.EventId} | {evt.Detail}");
@@ -327,7 +327,7 @@ Do NOT mention the operating system version, build number, or hardware specs - f
     /// Auto-analyze and cache. Fires InsightsUpdated when done.
     /// Safe to call from background thread.
     /// </summary>
-    public async Task AnalyzeAndCacheAsync(List<RebootEvent> history)
+    public async Task AnalyzeAndCacheAsync(List<RestartEvent> history)
     {
         if (!_available || _client == null || _analyzing) return;
         _analyzing = true;
@@ -356,7 +356,7 @@ Do NOT mention the operating system version, build number, or hardware specs - f
         await done.Task;
 
         // Pre-fetch explanations for all non-green events
-        var concerningEvents = history.Where(e => e.Severity != RebootSeverity.Green).ToList();
+        var concerningEvents = history.Where(e => e.Severity != RestartSeverity.Green).ToList();
         foreach (var evt in concerningEvents)
         {
             if (GetCachedExplanation(evt) != null) continue;
@@ -364,7 +364,7 @@ Do NOT mention the operating system version, build number, or hardware specs - f
             {
                 var result = new StringBuilder();
                 var explainDone = new TaskCompletionSource();
-                await ExplainRebootAsync(
+                await ExplainRestartAsync(
                     evt,
                     onToken: token => result.Append(token),
                     onComplete: () =>

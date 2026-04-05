@@ -1,13 +1,13 @@
 using System.Diagnostics.Eventing.Reader;
-using RebootWatch.Models;
+using RestartWatch.Models;
 
-namespace RebootWatch.Services;
+namespace RestartWatch.Services;
 
-public static class RebootClassifier
+public static class RestartClassifier
 {
-    public static List<RebootEvent> GetRebootHistory(int maxResults = 10)
+    public static List<RestartEvent> GetRestartHistory(int maxResults = 10)
     {
-        var events = new List<RebootEvent>();
+        var events = new List<RestartEvent>();
 
         // Gather raw events: 1074, 6008, 41 (Kernel-Power), 1001 (BugCheck), 6009
         var rawEvents = QueryEvents();
@@ -25,13 +25,13 @@ public static class RebootClassifier
         // Classify events
         foreach (var evt in rawEvents)
         {
-            RebootEvent? classified = evt.EventId switch
+            RestartEvent? classified = evt.EventId switch
             {
                 1074 => Classify1074(evt),
-                6008 => new RebootEvent
+                6008 => new RestartEvent
                 {
                     Timestamp = evt.Timestamp,
-                    Cause = RebootCause.UnexpectedShutdown,
+                    Cause = RestartCause.UnexpectedShutdown,
                     CauseDescription = "Unexpected Shutdown",
                     Detail = "The previous system shutdown was unexpected (Event 6008)",
                     EventId = 6008
@@ -51,9 +51,9 @@ public static class RebootClassifier
         return events;
     }
 
-    public static RebootEvent? GetLastRebootEvent()
+    public static RestartEvent? GetLastRestartEvent()
     {
-        var history = GetRebootHistory(1);
+        var history = GetRestartHistory(1);
         return history.Count > 0 ? history[0] : null;
     }
 
@@ -104,7 +104,7 @@ public static class RebootClassifier
         }
     }
 
-    private static RebootEvent Classify1074(RawEvent evt)
+    private static RestartEvent Classify1074(RawEvent evt)
     {
         var description = evt.FormatDescription.ToLowerInvariant();
         var props = evt.Properties;
@@ -122,10 +122,10 @@ public static class RebootClassifier
             reason.ToLowerInvariant().Contains("operating system: upgrade") ||
             reason.ToLowerInvariant().Contains("service pack"))
         {
-            return new RebootEvent
+            return new RestartEvent
             {
                 Timestamp = evt.Timestamp,
-                Cause = RebootCause.WindowsUpdate,
+                Cause = RestartCause.WindowsUpdate,
                 CauseDescription = "Windows Update",
                 Detail = TrimDetail(description),
                 EventId = 1074
@@ -135,10 +135,10 @@ public static class RebootClassifier
         // Check for user-initiated shutdown
         if (processName.Contains("shutdown.exe") || processName.Contains("shutdown"))
         {
-            return new RebootEvent
+            return new RestartEvent
             {
                 Timestamp = evt.Timestamp,
-                Cause = RebootCause.UserShutdown,
+                Cause = RestartCause.UserShutdown,
                 CauseDescription = "User Shutdown/Restart",
                 Detail = TrimDetail(description),
                 EventId = 1074
@@ -148,10 +148,10 @@ public static class RebootClassifier
         // Check for software install
         if (processName.Contains("setup.exe") || processName.Contains("msiexec"))
         {
-            return new RebootEvent
+            return new RestartEvent
             {
                 Timestamp = evt.Timestamp,
-                Cause = RebootCause.SoftwareInstall,
+                Cause = RestartCause.SoftwareInstall,
                 CauseDescription = "Software Install",
                 Detail = TrimDetail(description),
                 EventId = 1074
@@ -162,47 +162,47 @@ public static class RebootClassifier
         // Check reason fields for update-related content
         if (description.Contains("update") || description.Contains("upgrade"))
         {
-            return new RebootEvent
+            return new RestartEvent
             {
                 Timestamp = evt.Timestamp,
-                Cause = RebootCause.WindowsUpdate,
+                Cause = RestartCause.WindowsUpdate,
                 CauseDescription = "Windows Update",
                 Detail = TrimDetail(description),
                 EventId = 1074
             };
         }
 
-        return new RebootEvent
+        return new RestartEvent
         {
             Timestamp = evt.Timestamp,
-            Cause = RebootCause.UserShutdown,
+            Cause = RestartCause.UserShutdown,
             CauseDescription = "Planned Shutdown/Restart",
             Detail = TrimDetail(description),
             EventId = 1074
         };
     }
 
-    private static RebootEvent ClassifyKernelPower41(RawEvent evt, HashSet<DateTime> bugCheckDates)
+    private static RestartEvent ClassifyKernelPower41(RawEvent evt, HashSet<DateTime> bugCheckDates)
     {
         // If a BugCheck event (1001) occurred on the same day, classify as BSOD
         bool hasBugCheck = bugCheckDates.Contains(evt.Timestamp.Date);
 
         if (hasBugCheck)
         {
-            return new RebootEvent
+            return new RestartEvent
             {
                 Timestamp = evt.Timestamp,
-                Cause = RebootCause.Bsod,
+                Cause = RestartCause.Bsod,
                 CauseDescription = "BSOD/Crash",
                 Detail = "Kernel-Power 41 with BugCheck — system crash detected",
                 EventId = 41
             };
         }
 
-        return new RebootEvent
+        return new RestartEvent
         {
             Timestamp = evt.Timestamp,
-            Cause = RebootCause.PowerLoss,
+            Cause = RestartCause.PowerLoss,
             CauseDescription = "Power Loss",
             Detail = "Kernel-Power 41 without BugCheck — likely power loss",
             EventId = 41
