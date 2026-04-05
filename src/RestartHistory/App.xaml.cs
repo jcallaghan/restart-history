@@ -1,4 +1,4 @@
-namespace RestartWatch;
+namespace RestartHistory;
 
 public partial class App : System.Windows.Application
 {

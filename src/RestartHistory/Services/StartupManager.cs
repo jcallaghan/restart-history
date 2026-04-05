@@ -1,11 +1,11 @@
 using Microsoft.Win32;
 
-namespace RestartWatch.Services;
+namespace RestartHistory.Services;
 
 public static class StartupManager
 {
     private const string RunKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-    private const string AppName = "RestartWatch";
+    private const string AppName = "RestartHistory";
 
     public static bool IsStartupEnabled()
     {
@@ -20,7 +20,7 @@ public static class StartupManager
 
         if (enabled)
         {
-            var exePath = Environment.ProcessPath ?? System.IO.Path.Combine(AppContext.BaseDirectory, "RestartWatch.exe");
+            var exePath = Environment.ProcessPath ?? System.IO.Path.Combine(AppContext.BaseDirectory, "RestartHistory.exe");
             key.SetValue(AppName, $"\"{exePath}\"");
         }
         else

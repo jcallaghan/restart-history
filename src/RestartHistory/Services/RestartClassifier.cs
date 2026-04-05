@@ -1,7 +1,7 @@
 using System.Diagnostics.Eventing.Reader;
-using RestartWatch.Models;
+using RestartHistory.Models;
 
-namespace RestartWatch.Services;
+namespace RestartHistory.Services;
 
 public static class RestartClassifier
 {

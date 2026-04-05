@@ -4,11 +4,11 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using RestartWatch.Models;
-using RestartWatch.Services;
+using RestartHistory.Models;
+using RestartHistory.Services;
 using WinForms = System.Windows.Forms;
 
-namespace RestartWatch.Views;
+namespace RestartHistory.Views;
 
 public partial class HistoryPopup : Window
 {

@@ -5,9 +5,9 @@ using System.Text;
 using System.Text.Json;
 using GitHub.Copilot.SDK;
 using Microsoft.Extensions.AI;
-using RestartWatch.Models;
+using RestartHistory.Models;
 
-namespace RestartWatch.Services;
+namespace RestartHistory.Services;
 
 /// <summary>
 /// Provides AI-powered reboot insights via the GitHub Copilot SDK.
@@ -139,7 +139,7 @@ public class CopilotInsightsService : IAsyncDisposable
                 SystemMessage = new SystemMessageConfig
                 {
                     Mode = SystemMessageMode.Replace,
-                    Content = @"You are a Windows system analyst embedded in a system tray utility called Restart Watch.
+                    Content = @"You are a Windows system analyst embedded in a system tray utility called Restart History.
 When given a Windows restart event, explain what caused it and whether it's concerning.
 Use plain English. Do NOT use markdown formatting, headers, or bullet points.
 Write in 2-3 short paragraphs.
@@ -276,7 +276,7 @@ Do NOT mention OS version or build number."
                 SystemMessage = new SystemMessageConfig
                 {
                     Mode = SystemMessageMode.Replace,
-                    Content = @"You are a Windows system analyst embedded in a system tray utility called Restart Watch.
+                    Content = @"You are a Windows system analyst embedded in a system tray utility called Restart History.
 Provide a HOLISTIC analysis of the entire restart history in 2-4 short paragraphs.
 Cover: overall health trends, recurring patterns, frequency analysis, problematic event clusters, and general recommendations.
 If you see crash events with error codes, explain what they mean and potential causes.

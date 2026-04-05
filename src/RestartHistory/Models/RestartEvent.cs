@@ -1,4 +1,4 @@
-namespace RestartWatch.Models;
+namespace RestartHistory.Models;
 
 public enum RestartCause
 {

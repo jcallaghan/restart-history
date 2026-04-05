@@ -1,6 +1,6 @@
 using System.Management;
 
-namespace RestartWatch.Services;
+namespace RestartHistory.Services;
 
 public static class BootInfoProvider
 {

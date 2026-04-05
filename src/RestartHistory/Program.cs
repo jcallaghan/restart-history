@@ -2,11 +2,11 @@ using System;
 using System.Threading;
 using System.Windows;
 
-namespace RestartWatch;
+namespace RestartHistory;
 
 public static class Program
 {
-    private const string MutexName = "Global\\RestartWatch_SingleInstance_Mutex";
+    private const string MutexName = "Global\\RestartHistory_SingleInstance_Mutex";
 
     [STAThread]
     public static void Main(string[] args)
@@ -16,7 +16,7 @@ public static class Program
         if (!createdNew)
         {
             // Another instance is already running
-            System.Windows.MessageBox.Show("Restart Watch is already running.", "Restart Watch",
+            System.Windows.MessageBox.Show("Restart History is already running.", "Restart History",
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             return;
         }

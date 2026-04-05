@@ -1,8 +1,8 @@
-# Restart Watch
+# Restart History
 
 A lightweight Windows system tray utility that monitors your restart history, classifies causes, and surfaces patterns — without opening Event Viewer.
 
-![Restart Watch Dashboard](./docs/images/main.png)
+![Restart History Dashboard](./docs/images/main.png)
 
 ## Features
 
@@ -17,7 +17,7 @@ A lightweight Windows system tray utility that monitors your restart history, cl
 
 ## Download
 
-Grab the latest `RestartWatch.exe` from the [Releases](https://github.com/jcallaghan/restart-watch/releases) page. No installation required — just run the exe.
+Grab the latest `RestartHistory.exe` from the [Releases](https://github.com/jcallaghan/restart-history/releases) page. No installation required — just run the exe.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ Grab the latest `RestartWatch.exe` from the [Releases](https://github.com/jcalla
 
 ## Usage
 
-1. Run `RestartWatch.exe`
+1. Run `RestartHistory.exe`
 2. A tray icon appears in the notification area (you may need to click the `^` overflow arrow)
 3. **Left-click** the icon to open the dashboard flyout
 4. **Right-click** for the context menu (Refresh, Start with Windows, AI Insights, Exit)
@@ -59,7 +59,7 @@ The **History** list shows each restart with a severity dot, timestamp, and caus
 
 ## AI Insights (GitHub Copilot)
 
-Restart Watch optionally integrates with the [GitHub Copilot SDK](https://www.npmjs.com/package/@anthropic-ai/copilot-cli) to provide AI-powered analysis of your restart history. This feature is **completely optional** — the app works fully without it.
+Restart History optionally integrates with the [GitHub Copilot SDK](https://www.npmjs.com/package/@anthropic-ai/copilot-cli) to provide AI-powered analysis of your restart history. This feature is **completely optional** — the app works fully without it.
 
 ### What it does
 
@@ -87,7 +87,7 @@ Restart Watch optionally integrates with the [GitHub Copilot SDK](https://www.np
 
    Run `copilot auth` to sign in with your GitHub account. A GitHub Copilot subscription is required.
 
-3. **Enable in Restart Watch**
+3. **Enable in Restart History**
 
    Right-click the tray icon and check **"AI Insights (Copilot)"**. The menu item only appears when the Copilot CLI is detected in your PATH.
 
@@ -103,26 +103,26 @@ Restart Watch optionally integrates with the [GitHub Copilot SDK](https://www.np
 
 ```powershell
 # Clone
-git clone https://github.com/jcallaghan/restart-watch.git
-cd restart-watch
+git clone https://github.com/jcallaghan/restart-history.git
+cd restart-history
 
 # Build
-dotnet build RestartWatch.sln
+dotnet build RestartHistory.sln
 
 # Run
-dotnet run --project src/RestartWatch/RestartWatch.csproj
+dotnet run --project src/RestartHistory/RestartHistory.csproj
 
 # Publish a self-contained single-file exe
-dotnet publish src/RestartWatch -r win-x64 --self-contained -p:PublishSingleFile=true -c Release -o ./publish
+dotnet publish src/RestartHistory -r win-x64 --self-contained -p:PublishSingleFile=true -c Release -o ./publish
 ```
 
-The published exe in `./publish/RestartWatch.exe` is self-contained and runs on any Windows 10/11 x64 machine without the .NET runtime installed.
+The published exe in `./publish/RestartHistory.exe` is self-contained and runs on any Windows 10/11 x64 machine without the .NET runtime installed.
 
 ## Project structure
 
 ```
-restart-watch/
-├── src/RestartWatch/
+restart-history/
+├── src/RestartHistory/
 │   ├── Models/           # RestartEvent model, cause/severity enums
 │   ├── Services/         # Event log queries, boot info, Copilot SDK integration
 │   ├── Views/            # WPF flyout popup (XAML + code-behind)
@@ -130,14 +130,14 @@ restart-watch/
 │   ├── TrayApplicationContext.cs  # Tray icon, context menu, lifecycle
 │   ├── Program.cs        # Entry point
 │   └── App.xaml          # WPF application
-├── RestartWatch.sln
+├── RestartHistory.sln
 ├── PRD.md                # Product requirements document
 └── README.md
 ```
 
 ## How restart classification works
 
-Restart Watch reads the Windows System Event Log and classifies events:
+Restart History reads the Windows System Event Log and classifies events:
 
 | Event Source        | Event ID | Classification                  |
 | ------------------- | -------- | ------------------------------- |

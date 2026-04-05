@@ -5,11 +5,11 @@ using System.IO;
 using System.Text.Json;
 using System.Windows.Forms;
 using Microsoft.Toolkit.Uwp.Notifications;
-using RestartWatch.Models;
-using RestartWatch.Services;
-using RestartWatch.Views;
+using RestartHistory.Models;
+using RestartHistory.Services;
+using RestartHistory.Views;
 
-namespace RestartWatch;
+namespace RestartHistory;
 
 public class TrayApplicationContext : ApplicationContext
 {
@@ -25,7 +25,7 @@ public class TrayApplicationContext : ApplicationContext
 
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "RestartWatch", "settings.json");
+        "RestartHistory", "settings.json");
 
     public TrayApplicationContext()
     {
