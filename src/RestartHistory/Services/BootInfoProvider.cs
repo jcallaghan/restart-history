@@ -34,7 +34,7 @@ public static class BootInfoProvider
     public static string FormatUptime(TimeSpan uptime)
     {
         if (uptime.TotalDays >= 1)
-            return $"{(int)uptime.TotalDays}d {uptime.Hours}h {uptime.Minutes}m";
+            return $"{(int)uptime.TotalDays}d {uptime.Hours}h";
         if (uptime.TotalHours >= 1)
             return $"{(int)uptime.TotalHours}h {uptime.Minutes}m";
         return $"{uptime.Minutes}m";
