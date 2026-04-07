@@ -31,7 +31,7 @@ src/RestartHistory/
 - Fresh popup created per tray click (not reused) — avoids stale state
 - Copilot analysis runs in background on startup + refresh; results cached in memory
 - Per-event explanations pre-fetched for all non-green items after summaries complete
-- Settings persisted as JSON at `%LOCALAPPDATA%\RestartWatch\settings.json`
+- Settings persisted as JSON at `%LOCALAPPDATA%\RestartHistory\settings.json`
 - Single instance enforced via `Global\RestartHistory_SingleInstance_Mutex`
 - Popup repositions on `SystemEvents.DisplaySettingsChanged` (dock/undock support)
 

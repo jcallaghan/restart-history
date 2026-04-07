@@ -51,18 +51,12 @@ public static class RestartClassifier
         return events;
     }
 
-    public static RestartEvent? GetLastRestartEvent()
-    {
-        var history = GetRestartHistory(1);
-        return history.Count > 0 ? history[0] : null;
-    }
-
     private static List<RawEvent> QueryEvents()
     {
         var results = new List<RawEvent>();
 
-        // Query for Event IDs: 1074, 6008, 41, 1001, 6009
-        string query = @"*[System[(EventID=1074 or EventID=6008 or EventID=41 or EventID=1001 or EventID=6009)]]";
+        // Query for Event IDs: 1074, 6008, 41, 1001 — with 90-day time filter
+        string query = @"*[System[(EventID=1074 or EventID=6008 or EventID=41 or EventID=1001) and TimeCreated[timediff(@SystemTime) <= 7776000000]]]";
 
         try
         {
@@ -133,7 +127,7 @@ public static class RestartClassifier
         }
 
         // Check for user-initiated shutdown
-        if (processName.Contains("shutdown.exe") || processName.Contains("shutdown"))
+        if (processName.Contains("shutdown.exe"))
         {
             return new RestartEvent
             {

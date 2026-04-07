@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows.Forms;
 using Microsoft.Toolkit.Uwp.Notifications;
@@ -14,8 +15,9 @@ namespace RestartHistory;
 public class TrayApplicationContext : ApplicationContext
 {
     private readonly NotifyIcon _notifyIcon;
-    private readonly System.Windows.Forms.Timer _uptimeTimer;
+    private readonly System.Windows.Threading.DispatcherTimer _uptimeTimer;
     private readonly CopilotInsightsService _copilot = new();
+    private readonly CancellationTokenSource _cts = new();
     private HistoryPopup? _popup;
     private List<RestartEvent> _history = new();
     private DateTime _lastBootTime;
@@ -44,15 +46,12 @@ public class TrayApplicationContext : ApplicationContext
 
         _notifyIcon.MouseClick += OnTrayClick;
 
-        _uptimeTimer = new System.Windows.Forms.Timer { Interval = 60_000 };
+        _uptimeTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _uptimeTimer.Tick += (_, _) => UpdateTooltip();
         _uptimeTimer.Start();
 
         // Handle toast notification clicks — open the flyout
-        ToastNotificationManagerCompat.OnActivated += toastArgs =>
-        {
-            System.Windows.Application.Current?.Dispatcher.Invoke(ShowPopup);
-        };
+        ToastNotificationManagerCompat.OnActivated += OnToastActivated;
 
         ShowBootToast();
 
@@ -64,9 +63,11 @@ public class TrayApplicationContext : ApplicationContext
                 var available = await _copilot.TryInitializeAsync();
                 if (available && _aiMenuItem != null)
                 {
-                    // Show the menu item on the UI thread
-                    _aiMenuItem.Visible = true;
-                    // If AI was already enabled from settings, run analysis
+                    // Marshal to UI thread for WinForms control access
+                    _notifyIcon.ContextMenuStrip?.Invoke(() =>
+                    {
+                        _aiMenuItem.Visible = true;
+                    });
                     if (_aiInsightsEnabled) RunAutoAnalysis();
                 }
             }
@@ -84,12 +85,14 @@ public class TrayApplicationContext : ApplicationContext
     private void UpdateIcon()
     {
         var severity = _lastReboot?.Severity ?? RestartSeverity.Green;
+        var oldIcon = _notifyIcon.Icon;
         _notifyIcon.Icon = severity switch
         {
             RestartSeverity.Red => GenerateIcon(Color.FromArgb(244, 67, 54)),
             RestartSeverity.Yellow => GenerateIcon(Color.FromArgb(255, 193, 7)),
             _ => GenerateIcon(Color.FromArgb(76, 175, 80))
         };
+        oldIcon?.Dispose();
     }
 
     private void UpdateTooltip()
@@ -182,8 +185,16 @@ public class TrayApplicationContext : ApplicationContext
 
         menu.Items.Add(new ToolStripSeparator());
 
+        var version = typeof(TrayApplicationContext).Assembly.GetName().Version;
+        var versionItem = new ToolStripMenuItem($"v{version?.ToString(3) ?? "1.0.0"}")
+        {
+            Enabled = false
+        };
+        menu.Items.Add(versionItem);
+
         menu.Items.Add("Exit", null, (_, _) =>
         {
+            _cts.Cancel();
             _notifyIcon.Visible = false;
             _uptimeTimer.Stop();
             System.Windows.Application.Current?.Shutdown();
@@ -206,6 +217,13 @@ public class TrayApplicationContext : ApplicationContext
         ShowPopup();
     }
 
+    private void OnToastActivated(ToastNotificationActivatedEventArgsCompat args)
+    {
+        var app = System.Windows.Application.Current;
+        if (app == null || app.Dispatcher.HasShutdownStarted) return;
+        app.Dispatcher.BeginInvoke(ShowPopup);
+    }
+
     private void ShowPopup()
     {
         RefreshData();
@@ -223,11 +241,13 @@ public class TrayApplicationContext : ApplicationContext
     private void RunAutoAnalysis()
     {
         if (!_copilot.IsAvailable || _copilot.IsAnalyzing) return;
+        var history = _history; // capture reference to avoid race with RefreshData
+        var token = _cts.Token;
         _ = Task.Run(async () =>
         {
-            try { await _copilot.AnalyzeAndCacheAsync(_history); }
+            try { await _copilot.AnalyzeAndCacheAsync(history, token); }
             catch { /* Non-critical */ }
-        });
+        }, token);
     }
 
     /// <summary>
@@ -261,8 +281,14 @@ public class TrayApplicationContext : ApplicationContext
         g.DrawLine(pen, tip, new PointF(tip.X, tip.Y + 4.5f));
         g.DrawLine(pen, tip, new PointF(tip.X - 4f, tip.Y + 1.5f));
 
-        return Icon.FromHandle(bmp.GetHicon());
+        var hIcon = bmp.GetHicon();
+        var icon = (Icon)Icon.FromHandle(hIcon).Clone();
+        DestroyIcon(hIcon);
+        return icon;
     }
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern bool DestroyIcon(IntPtr handle);
 
     private void LoadSettings()
     {
@@ -302,10 +328,16 @@ public class TrayApplicationContext : ApplicationContext
     {
         if (disposing)
         {
+            _cts.Cancel();
             _uptimeTimer.Stop();
-            _uptimeTimer.Dispose();
+            _notifyIcon.Icon?.Dispose();
             _notifyIcon.Visible = false;
             _notifyIcon.Dispose();
+            _popup?.Close();
+            ToastNotificationManagerCompat.OnActivated -= OnToastActivated;
+            // Fire-and-forget async dispose to avoid deadlock on dispatcher
+            _ = Task.Run(async () => { try { await _copilot.DisposeAsync(); } catch { } });
+            _cts.Dispose();
         }
         base.Dispose(disposing);
     }

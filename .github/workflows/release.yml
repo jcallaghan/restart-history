@@ -12,22 +12,25 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 8.0.x
 
       - name: Publish
-        run: dotnet publish src/RestartHistory -r win-x64 --self-contained -p:PublishSingleFile=true -c Release -o ./publish
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          dotnet publish src/RestartHistory -r win-x64 --self-contained -p:PublishSingleFile=true -p:Version=$version -c Release -o ./publish
+        shell: pwsh
 
       - name: Zip release
-        run: Compress-Archive -Path ./publish/RestartHistory.exe -DestinationPath ./RestartHistory-${{ github.ref_name }}-win-x64.zip
+        run: Compress-Archive -Path ./publish/RestartHistory.exe, ./publish/RestartHistory.pdb -DestinationPath ./RestartHistory-${{ github.ref_name }}-win-x64.zip
         shell: pwsh
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
         with:
           files: ./RestartHistory-*.zip
           generate_release_notes: true

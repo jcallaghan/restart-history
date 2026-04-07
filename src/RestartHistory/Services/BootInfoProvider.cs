@@ -11,10 +11,13 @@ public static class BootInfoProvider
             using var searcher = new ManagementObjectSearcher("SELECT LastBootUpTime FROM Win32_OperatingSystem");
             foreach (ManagementObject obj in searcher.Get())
             {
-                var bootTimeStr = obj["LastBootUpTime"]?.ToString();
-                if (bootTimeStr != null)
+                using (obj)
                 {
-                    return ManagementDateTimeConverter.ToDateTime(bootTimeStr);
+                    var bootTimeStr = obj["LastBootUpTime"]?.ToString();
+                    if (bootTimeStr != null)
+                    {
+                        return ManagementDateTimeConverter.ToDateTime(bootTimeStr);
+                    }
                 }
             }
         }
@@ -24,11 +27,6 @@ public static class BootInfoProvider
         }
 
         return DateTime.Now - TimeSpan.FromMilliseconds(Environment.TickCount64);
-    }
-
-    public static TimeSpan GetUptime()
-    {
-        return DateTime.Now - GetLastBootTime();
     }
 
     public static string FormatUptime(TimeSpan uptime)

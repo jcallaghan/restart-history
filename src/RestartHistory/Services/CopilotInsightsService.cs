@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Management;
@@ -20,13 +21,13 @@ public class CopilotInsightsService : IAsyncDisposable
     private bool _initialized;
     private string? _cachedShortSummary;
     private string? _cachedDetailedSummary;
-    private bool _analyzing;
-    private readonly Dictionary<string, string> _eventExplanationCache = new();
+    private int _analyzing; // 0=idle, 1=active (Interlocked)
+    private readonly ConcurrentDictionary<string, string> _eventExplanationCache = new();
 
     public bool IsAvailable => _available;
     public string? CachedShortSummary => _cachedShortSummary;
     public string? CachedDetailedSummary => _cachedDetailedSummary;
-    public bool IsAnalyzing => _analyzing;
+    public bool IsAnalyzing => _analyzing != 0;
 
     /// <summary>Event raised when cached insights are updated (short, detailed).</summary>
     public event Action<string, string>? InsightsUpdated;
@@ -39,11 +40,11 @@ public class CopilotInsightsService : IAsyncDisposable
         _eventExplanationCache.Clear();
     }
 
-    /// <summary>Gets a cached explanation for a reboot event, or null if not cached.</summary>
+    /// <summary>Gets a cached explanation for a restart event, or null if not cached.</summary>
     public string? GetCachedExplanation(RestartEvent evt) =>
         _eventExplanationCache.TryGetValue(GetEventKey(evt), out var explanation) ? explanation : null;
 
-    /// <summary>Caches an explanation for a reboot event.</summary>
+    /// <summary>Caches an explanation for a restart event.</summary>
     public void CacheExplanation(RestartEvent evt, string explanation) =>
         _eventExplanationCache[GetEventKey(evt)] = explanation;
 
@@ -62,16 +63,7 @@ public class CopilotInsightsService : IAsyncDisposable
                 var noExt = System.IO.Path.Combine(dir, "copilot");
                 if (System.IO.File.Exists(noExt)) return true;
             }
-            // Also check via where command
-            var psi = new ProcessStartInfo("where.exe", "copilot")
-            {
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            using var proc = Process.Start(psi);
-            proc?.WaitForExit(3000);
-            return proc?.ExitCode == 0;
+            return false;
         }
         catch
         {
@@ -183,7 +175,11 @@ Do NOT mention the OS version or build number in your response - focus on the ev
 If there are error codes, explain what they mean and potential causes.";
 
             await session.SendAsync(new MessageOptions { Prompt = prompt });
-            await done.Task;
+            await done.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        catch (TimeoutException)
+        {
+            onError("Copilot analysis timed out");
         }
         catch (Exception ex)
         {
@@ -210,8 +206,6 @@ If there are error codes, explain what they mean and potential causes.";
 
         try
         {
-            var osInfo = GetOsInfo();
-            
             // First: Generate short summary focused on most recent restart
             await using var shortSession = await _client.CreateSessionAsync(new SessionConfig
             {
@@ -259,12 +253,13 @@ Do NOT mention OS version or build number."
                         shortDone.TrySetResult();
                         break;
                     case SessionErrorEvent err:
-                        shortDone.TrySetException(new Exception(err.Data.Message));
+                        Debug.WriteLine($"Copilot short summary session error: {err.Data.Message}");
+                        shortDone.TrySetResult();
                         break;
                 }
             });
             await shortSession.SendAsync(new MessageOptions { Prompt = shortSb.ToString() });
-            await shortDone.Task;
+            await shortDone.Task.WaitAsync(TimeSpan.FromSeconds(30));
             onShortSummary(shortResult.ToString().Trim());
 
             // Second: Generate detailed holistic summary
@@ -301,7 +296,8 @@ Do NOT mention the operating system version, build number, or hardware specs - f
                         detailDone.TrySetResult();
                         break;
                     case SessionErrorEvent err:
-                        detailDone.TrySetException(new Exception(err.Data.Message));
+                        Debug.WriteLine($"Copilot detail session error: {err.Data.Message}");
+                        detailDone.TrySetResult();
                         break;
                 }
             });
@@ -313,7 +309,7 @@ Do NOT mention the operating system version, build number, or hardware specs - f
                 detailSb.AppendLine($"- {evt.Timestamp:g} | {evt.CauseLabel} | Severity: {evt.Severity} | EventID: {evt.EventId} | {evt.Detail}");
 
             await detailSession.SendAsync(new MessageOptions { Prompt = detailSb.ToString() });
-            await detailDone.Task;
+            await detailDone.Task.WaitAsync(TimeSpan.FromSeconds(30));
             onDetailedSummary(detailResult.ToString().Trim());
             onComplete();
         }
@@ -327,89 +323,69 @@ Do NOT mention the operating system version, build number, or hardware specs - f
     /// Auto-analyze and cache. Fires InsightsUpdated when done.
     /// Safe to call from background thread.
     /// </summary>
-    public async Task AnalyzeAndCacheAsync(List<RestartEvent> history)
+    public async Task AnalyzeAndCacheAsync(List<RestartEvent> history, CancellationToken cancellationToken = default)
     {
-        if (!_available || _client == null || _analyzing) return;
-        _analyzing = true;
+        if (!_available || _client == null) return;
+        // Atomic compare-and-swap to prevent concurrent analysis
+        if (Interlocked.CompareExchange(ref _analyzing, 1, 0) != 0)
+            return;
 
-        var done = new TaskCompletionSource();
-        string shortSummary = "";
-        string detailedSummary = "";
-
-        await AnalyzePatternsAsync(
-            history,
-            onShortSummary: s => shortSummary = s,
-            onDetailedSummary: d => detailedSummary = d,
-            onComplete: () =>
-            {
-                _cachedShortSummary = shortSummary;
-                _cachedDetailedSummary = detailedSummary;
-                InsightsUpdated?.Invoke(shortSummary, detailedSummary);
-                done.TrySetResult();
-            },
-            onError: error =>
-            {
-                done.TrySetResult();
-            }
-        );
-
-        await done.Task;
-
-        // Pre-fetch explanations for all non-green events
-        var concerningEvents = history.Where(e => e.Severity != RestartSeverity.Green).ToList();
-        foreach (var evt in concerningEvents)
-        {
-            if (GetCachedExplanation(evt) != null) continue;
-            try
-            {
-                var result = new StringBuilder();
-                var explainDone = new TaskCompletionSource();
-                await ExplainRestartAsync(
-                    evt,
-                    onToken: token => result.Append(token),
-                    onComplete: () =>
-                    {
-                        CacheExplanation(evt, result.ToString());
-                        explainDone.TrySetResult();
-                    },
-                    onError: _ => explainDone.TrySetResult()
-                );
-                await explainDone.Task;
-            }
-            catch { /* Non-critical — user can still fetch on demand */ }
-        }
-
-        _analyzing = false;
-    }
-
-    /// <summary>
-    /// Gets OS information for context in LLM prompts.
-    /// </summary>
-    private static string GetOsInfo()
-    {
         try
         {
-            var os = Environment.OSVersion;
-            var arch = Environment.Is64BitOperatingSystem ? "x64" : "x86";
-            
-            // Try to get friendly Windows name via WMI
-            string caption = "Windows";
-            try
-            {
-                using var searcher = new ManagementObjectSearcher("SELECT Caption FROM Win32_OperatingSystem");
-                foreach (var obj in searcher.Get())
+            var done = new TaskCompletionSource();
+            string shortSummary = "";
+            string detailedSummary = "";
+
+            await AnalyzePatternsAsync(
+                history,
+                onShortSummary: s => shortSummary = s,
+                onDetailedSummary: d => detailedSummary = d,
+                onComplete: () =>
                 {
-                    caption = obj["Caption"]?.ToString() ?? caption;
-                    break;
+                    _cachedShortSummary = shortSummary;
+                    _cachedDetailedSummary = detailedSummary;
+                    InsightsUpdated?.Invoke(shortSummary, detailedSummary);
+                    done.TrySetResult();
+                },
+                onError: error =>
+                {
+                    // Signal completion so any listening popup can exit loading state
+                    InsightsUpdated?.Invoke("Unable to generate insights.", "");
+                    done.TrySetResult();
                 }
+            );
+
+            await done.Task;
+
+            // Pre-fetch explanations for all non-green events
+            var concerningEvents = history.Where(e => e.Severity != RestartSeverity.Green).ToList();
+            foreach (var evt in concerningEvents)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (GetCachedExplanation(evt) != null) continue;
+                try
+                {
+                    var result = new StringBuilder();
+                    var explainDone = new TaskCompletionSource();
+                    await ExplainRestartAsync(
+                        evt,
+                        onToken: token => result.Append(token),
+                        onComplete: () =>
+                        {
+                            CacheExplanation(evt, result.ToString());
+                            explainDone.TrySetResult();
+                        },
+                        onError: _ => explainDone.TrySetResult()
+                    );
+                    await explainDone.Task;
+                }
+                catch (OperationCanceledException) { throw; }
+                catch { /* Non-critical — user can still fetch on demand */ }
             }
-            catch { }
-            
-            return $"{caption} ({os.Version}) {arch}";
         }
-        catch
+        finally
         {
-            return $"Windows {Environment.OSVersion.Version}";
+            Interlocked.Exchange(ref _analyzing, 0);
         }
     }
 

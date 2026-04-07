@@ -59,7 +59,7 @@ The **History** list shows each restart with a severity dot, timestamp, and caus
 
 ## AI Insights (GitHub Copilot)
 
-Restart History optionally integrates with the [GitHub Copilot SDK](https://www.npmjs.com/package/@anthropic-ai/copilot-cli) to provide AI-powered analysis of your restart history. This feature is **completely optional** — the app works fully without it.
+Restart History optionally integrates with the [GitHub Copilot SDK](https://www.nuget.org/packages/GitHub.Copilot.SDK) to provide AI-powered analysis of your restart history. This feature is **completely optional** — the app works fully without it.
 
 ### What it does
 
@@ -75,13 +75,11 @@ Restart History optionally integrates with the [GitHub Copilot SDK](https://www.
 
 1. **Install the GitHub Copilot CLI**
 
-   The Copilot CLI must be available in your PATH as `copilot` or `copilot.exe`. Install it via npm:
+   The Copilot CLI must be available in your PATH as `copilot` or `copilot.exe`. Install via winget:
 
    ```powershell
-   npm install -g @githubnext/github-copilot-cli
+   winget install GitHub.Copilot
    ```
-
-   Or download the binary from [GitHub Copilot CLI releases](https://github.com/github/copilot-cli/releases).
 
 2. **Authenticate**
 

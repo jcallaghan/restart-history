@@ -82,7 +82,7 @@ public class RestartEvent
     };
 
     /// <summary>Timestamp formatted using system regional settings.</summary>
-    public string FormattedTimestamp => Timestamp.ToString("dd MMM") + "  " + Timestamp.ToString("HH:mm");
+    public string FormattedTimestamp => Timestamp.ToString("d MMM  HH:mm");
 
     // Keep legacy for any remaining usage
     public string SeverityIcon => Severity switch

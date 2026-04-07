@@ -29,6 +29,7 @@ public partial class HistoryPopup : Window
     private int _periodDays = 14;
     private DispatcherTimer? _loadingTimer;
     private System.Drawing.Point? _anchor;
+    private int _explainGeneration;
 
     public HistoryPopup(DateTime lastBootTime, List<RestartEvent> history,
         System.Drawing.Point? anchor = null, CopilotInsightsService? copilot = null)
@@ -109,6 +110,14 @@ public partial class HistoryPopup : Window
         Closed += (_, _) =>
         {
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            // Unsubscribe from Copilot events to prevent leak (singleton outlives popup)
+            if (_copilot != null)
+                _copilot.InsightsUpdated -= OnInsightsUpdated;
+            // Stop any running timers
+            _loadingTimer?.Stop();
+            _loadingTimer = null;
+            _summaryPageLoadingTimer?.Stop();
+            _summaryPageLoadingTimer = null;
         };
     }
 
@@ -129,20 +138,7 @@ public partial class HistoryPopup : Window
         SummaryScrollViewer.Visibility = Visibility.Collapsed;
         LoadingText.Text = "Analyzing restart history...";
         SummaryFullText.Text = "Generating insights...";
-        
-        // Animate loading bar
-        double barWidth = 0;
-        double direction = 1;
-        _loadingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
-        _loadingTimer.Tick += (_, _) =>
-        {
-            barWidth += direction * 3;
-            if (barWidth >= 200) direction = -1;
-            else if (barWidth <= 0) direction = 1;
-            LoadingBar.Width = Math.Max(20, barWidth);
-            LoadingBar.Margin = new Thickness(direction > 0 ? 0 : 200 - barWidth, 0, 0, 0);
-        };
-        _loadingTimer.Start();
+        _loadingTimer = CreateBouncingBarTimer(LoadingBar);
     }
 
     private void StopLoadingAnimation()
@@ -153,15 +149,39 @@ public partial class HistoryPopup : Window
         SummaryScrollViewer.Visibility = Visibility.Visible;
     }
 
+    private static DispatcherTimer CreateBouncingBarTimer(FrameworkElement bar)
+    {
+        double barWidth = 0, direction = 1;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
+        timer.Tick += (_, _) =>
+        {
+            barWidth += direction * 3;
+            if (barWidth >= 200) direction = -1;
+            else if (barWidth <= 0) direction = 1;
+            bar.Width = Math.Max(20, barWidth);
+            bar.Margin = new Thickness(direction > 0 ? 0 : 200 - barWidth, 0, 0, 0);
+        };
+        timer.Start();
+        return timer;
+    }
+
     private void OnInsightsUpdated(string shortSummary, string detailedSummary)
     {
         Dispatcher.Invoke(() =>
         {
             StopLoadingAnimation();
             SummaryPreviewCard.Visibility = Visibility.Visible;
-            ShowMoreButton.Visibility = Visibility.Visible;
             SummaryPreviewText.Text = shortSummary;
-            SummaryFullText.Text = FormatSummaryText(detailedSummary);
+            if (string.IsNullOrWhiteSpace(detailedSummary))
+            {
+                ShowMoreButton.Visibility = Visibility.Collapsed;
+                SummaryFullText.Text = "";
+            }
+            else
+            {
+                ShowMoreButton.Visibility = Visibility.Visible;
+                SummaryFullText.Text = FormatSummaryText(detailedSummary);
+            }
         });
     }
 
@@ -242,26 +262,16 @@ public partial class HistoryPopup : Window
         SummaryPageScroll.Visibility = Visibility.Collapsed;
         SummaryPageLoadingText.Text = "Analyzing...";
 
-        // Animate loading bar
-        double barWidth = 0;
-        double direction = 1;
         _summaryPageLoadingTimer?.Stop();
-        _summaryPageLoadingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
-        _summaryPageLoadingTimer.Tick += (_, _) =>
-        {
-            barWidth += direction * 3;
-            if (barWidth >= 200) direction = -1;
-            else if (barWidth <= 0) direction = 1;
-            SummaryPageLoadingBar.Width = Math.Max(20, barWidth);
-            SummaryPageLoadingBar.Margin = new Thickness(direction > 0 ? 0 : 200 - barWidth, 0, 0, 0);
-        };
-        _summaryPageLoadingTimer.Start();
+        _summaryPageLoadingTimer = CreateBouncingBarTimer(SummaryPageLoadingBar);
 
+        var generation = ++_explainGeneration;
         var result = new System.Text.StringBuilder();
         _ = _copilot.ExplainRestartAsync(
             reboot,
             onToken: token => Dispatcher.Invoke(() =>
             {
+                if (generation != _explainGeneration) return; // stale request
                 if (result.Length == 0)
                 {
                     _summaryPageLoadingTimer?.Stop();
@@ -274,14 +284,15 @@ public partial class HistoryPopup : Window
             }),
             onComplete: () => Dispatcher.Invoke(() =>
             {
+                if (generation != _explainGeneration) return;
                 _summaryPageLoadingTimer?.Stop();
                 SummaryPageLoading.Visibility = Visibility.Collapsed;
                 SummaryPageScroll.Visibility = Visibility.Visible;
-                // Cache the result for future use
                 _copilot.CacheExplanation(reboot, result.ToString());
             }),
             onError: err => Dispatcher.Invoke(() =>
             {
+                if (generation != _explainGeneration) return;
                 _summaryPageLoadingTimer?.Stop();
                 SummaryPageLoading.Visibility = Visibility.Collapsed;
                 SummaryPageScroll.Visibility = Visibility.Visible;
@@ -390,6 +401,8 @@ public partial class HistoryPopup : Window
                 Cursor = count > 0 ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow,
                 Tag = date,
             };
+            System.Windows.Automation.AutomationProperties.SetName(border, $"{date:ddd d MMM}: {count} restart{(count != 1 ? "s" : "")}");
+            System.Windows.Automation.AutomationProperties.SetHelpText(border, count > 0 ? "Click to highlight in history" : "No restarts");
 
             if (count > 0)
             {
@@ -520,8 +533,9 @@ public partial class HistoryPopup : Window
             .OrderByDescending(g => g.Count).ToList();
         int total = groups.Sum(g => g.Count);
 
-        BreakdownCanvas.Loaded += (_, _) =>
+        void PopulateBars()
         {
+            BreakdownCanvas.Children.Clear();
             double tw = BreakdownCanvas.ActualWidth; if (tw <= 0) tw = 340; double x = 0;
             foreach (var g in groups)
             {
@@ -530,7 +544,20 @@ public partial class HistoryPopup : Window
                 var r = new System.Windows.Shapes.Rectangle { Width = w, Height = 8, Fill = new SolidColorBrush(color), ToolTip = $"{g.Label}: {g.Count}" };
                 Canvas.SetLeft(r, x); Canvas.SetTop(r, 0); BreakdownCanvas.Children.Add(r); x += w;
             }
-        };
+        }
+
+        if (BreakdownCanvas.IsLoaded && BreakdownCanvas.ActualWidth > 0)
+            PopulateBars();
+        else
+        {
+            // Use a named handler to avoid accumulating anonymous delegates on rapid period switching
+            void OnLoaded(object s, RoutedEventArgs e)
+            {
+                BreakdownCanvas.Loaded -= OnLoaded;
+                PopulateBars();
+            }
+            BreakdownCanvas.Loaded += OnLoaded;
+        }
 
         var items = new List<UIElement>();
         foreach (var g in groups)
