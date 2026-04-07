@@ -335,8 +335,8 @@ public class TrayApplicationContext : ApplicationContext
             _notifyIcon.Dispose();
             _popup?.Close();
             ToastNotificationManagerCompat.OnActivated -= OnToastActivated;
-            // Fire-and-forget async dispose to avoid deadlock on dispatcher
-            _ = Task.Run(async () => { try { await _copilot.DisposeAsync(); } catch { } });
+            // Dispose Copilot client with brief timeout to allow child process teardown
+            try { _copilot.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(3)); } catch { }
             _cts.Dispose();
         }
         base.Dispose(disposing);

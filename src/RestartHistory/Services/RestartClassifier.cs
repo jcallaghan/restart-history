@@ -9,18 +9,17 @@ public static class RestartClassifier
     {
         var events = new List<RestartEvent>();
 
-        // Gather raw events: 1074, 6008, 41 (Kernel-Power), 1001 (BugCheck), 6009
+        // Gather raw events: 1074, 6008, 41 (Kernel-Power), 1001 (BugCheck)
         var rawEvents = QueryEvents();
 
         // Sort by time descending
         rawEvents.Sort((a, b) => b.Timestamp.CompareTo(a.Timestamp));
 
-        // Build a set of BugCheck (1001) timestamps for BSOD correlation
-        var bugCheckTimes = new HashSet<DateTime>();
-        foreach (var evt in rawEvents.Where(e => e.EventId == 1001))
-        {
-            bugCheckTimes.Add(evt.Timestamp.Date); // correlate by date (within same day)
-        }
+        // Collect BugCheck (1001) timestamps for BSOD correlation
+        var bugCheckTimestamps = rawEvents
+            .Where(e => e.EventId == 1001)
+            .Select(e => e.Timestamp)
+            .ToList();
 
         // Classify events
         foreach (var evt in rawEvents)
@@ -36,7 +35,7 @@ public static class RestartClassifier
                     Detail = "The previous system shutdown was unexpected (Event 6008)",
                     EventId = 6008
                 },
-                41 => ClassifyKernelPower41(evt, bugCheckTimes),
+                41 => ClassifyKernelPower41(evt, bugCheckTimestamps),
                 _ => null
             };
 
@@ -133,7 +132,7 @@ public static class RestartClassifier
             {
                 Timestamp = evt.Timestamp,
                 Cause = RestartCause.UserShutdown,
-                CauseDescription = "User Shutdown/Restart",
+                CauseDescription = "User Restart",
                 Detail = TrimDetail(description),
                 EventId = 1074
             };
@@ -176,10 +175,10 @@ public static class RestartClassifier
         };
     }
 
-    private static RestartEvent ClassifyKernelPower41(RawEvent evt, HashSet<DateTime> bugCheckDates)
+    private static RestartEvent ClassifyKernelPower41(RawEvent evt, List<DateTime> bugCheckTimestamps)
     {
-        // If a BugCheck event (1001) occurred on the same day, classify as BSOD
-        bool hasBugCheck = bugCheckDates.Contains(evt.Timestamp.Date);
+        // If a BugCheck event (1001) occurred within 2 hours, classify as BSOD
+        bool hasBugCheck = bugCheckTimestamps.Any(t => Math.Abs((evt.Timestamp - t).TotalHours) < 2);
 
         if (hasBugCheck)
         {
@@ -187,7 +186,7 @@ public static class RestartClassifier
             {
                 Timestamp = evt.Timestamp,
                 Cause = RestartCause.Bsod,
-                CauseDescription = "BSOD/Crash",
+                CauseDescription = "Blue Screen / Crash",
                 Detail = "Kernel-Power 41 with BugCheck — system crash detected",
                 EventId = 41
             };

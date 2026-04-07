@@ -597,7 +597,12 @@ public partial class HistoryPopup : Window
     }
 
     // ── Window events ──
-    private void Window_Deactivated(object? sender, EventArgs e) => Hide();
+    private void Window_Deactivated(object? sender, EventArgs e)
+    {
+        _loadingTimer?.Stop();
+        _summaryPageLoadingTimer?.Stop();
+        Hide();
+    }
     private void Close_Click(object sender, RoutedEventArgs e) => Hide();
 
     private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)

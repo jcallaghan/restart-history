@@ -25,6 +25,16 @@
         <SolidColorBrush x:Key="ScrollTrackBrush" Color="#2A2A2A"/>
         <FontFamily x:Key="FluentIcons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
+        <Style x:Key="SubtleFocusVisual">
+            <Setter Property="Control.Template">
+                <Setter.Value>
+                    <ControlTemplate>
+                        <Rectangle Stroke="{DynamicResource AccentBrush}" StrokeThickness="1" RadiusX="3" RadiusY="3" Margin="-2" Opacity="0.6"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="SectionHeading" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -96,19 +106,20 @@
                                 AutomationProperties.Name="Show 7 days"
                                 Background="Transparent" Foreground="{StaticResource SubtleBrush}"
                                 BorderThickness="0" FontSize="11" Cursor="Hand" Padding="6,4" Margin="0,0,2,0"
-                                FocusVisualStyle="{x:Null}"/>
+                                FocusVisualStyle="{StaticResource SubtleFocusVisual}"/>
                         <Button x:Name="Btn14d" Content="14d" Click="Period_Click" Tag="14"
                                 AutomationProperties.Name="Show 14 days"
                                 Background="Transparent" Foreground="{StaticResource SubtleBrush}"
                                 BorderThickness="0" FontSize="11" Cursor="Hand" Padding="6,4" Margin="0,0,2,0"
-                                FocusVisualStyle="{x:Null}"/>
+                                FocusVisualStyle="{StaticResource SubtleFocusVisual}"/>
                         <Button x:Name="Btn30d" Content="30d" Click="Period_Click" Tag="30"
                                 AutomationProperties.Name="Show 30 days"
                                 Background="Transparent" Foreground="{StaticResource SubtleBrush}"
                                 BorderThickness="0" FontSize="11" Cursor="Hand" Padding="6,4"
-                                FocusVisualStyle="{x:Null}"/>
+                                FocusVisualStyle="{StaticResource SubtleFocusVisual}"/>
                     </StackPanel>
                     <Button Grid.Column="3" Click="Close_Click"
+                            AutomationProperties.Name="Close"
                             Background="Transparent" BorderThickness="0" Cursor="Hand"
                             Padding="0" Width="32" Height="32" VerticalAlignment="Center" ToolTip="Close (Esc)">
                         <TextBlock Text="&#xE711;" FontFamily="{StaticResource FluentIcons}"
@@ -268,6 +279,7 @@
                                     <DataTemplate>
                                         <Border x:Name="HistoryItemBorder" Background="Transparent" Padding="2,4" CornerRadius="3"
                                                 ToolTip="{Binding CauseLabel}"
+                                                AutomationProperties.Name="{Binding CauseLabel}"
                                                 MouseLeftButtonUp="HistoryItem_Click" Tag="{Binding}">
                                             <Border.Style>
                                                 <Style TargetType="Border">
@@ -339,6 +351,7 @@
                                    VerticalAlignment="Center" Margin="8,0,0,0"/>
                     </StackPanel>
                     <Button Grid.Column="3" Click="Close_Click"
+                            AutomationProperties.Name="Close"
                             Background="Transparent" BorderThickness="0" Cursor="Hand"
                             Padding="0" Width="32" Height="32" VerticalAlignment="Center">
                         <TextBlock Text="&#xE711;" FontFamily="{StaticResource FluentIcons}"

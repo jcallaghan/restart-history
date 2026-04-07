@@ -1,11 +1,7 @@
 using System.Collections.Concurrent;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Management;
 using System.Text;
-using System.Text.Json;
 using GitHub.Copilot.SDK;
-using Microsoft.Extensions.AI;
 using RestartHistory.Models;
 
 namespace RestartHistory.Services;
@@ -58,10 +54,10 @@ public class CopilotInsightsService : IAsyncDisposable
             foreach (var dir in paths)
             {
                 if (string.IsNullOrWhiteSpace(dir)) continue;
-                var exe = System.IO.Path.Combine(dir, "copilot.exe");
-                if (System.IO.File.Exists(exe)) return true;
-                var noExt = System.IO.Path.Combine(dir, "copilot");
-                if (System.IO.File.Exists(noExt)) return true;
+                foreach (var name in new[] { "copilot.exe", "copilot", "copilot.cmd", "copilot.bat" })
+                {
+                    if (System.IO.File.Exists(System.IO.Path.Combine(dir, name))) return true;
+                }
             }
             return false;
         }
