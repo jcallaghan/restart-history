@@ -6,7 +6,7 @@ namespace RestartHistory;
 
 public static class Program
 {
-    private const string MutexName = "Global\\RestartHistory_SingleInstance_Mutex";
+    private const string MutexName = "Local\\RestartHistory_SingleInstance_Mutex";
 
     [STAThread]
     public static void Main(string[] args)

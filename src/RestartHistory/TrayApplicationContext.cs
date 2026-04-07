@@ -63,8 +63,9 @@ public class TrayApplicationContext : ApplicationContext
                 var available = await _copilot.TryInitializeAsync();
                 if (available && _aiMenuItem != null)
                 {
-                    // Marshal to UI thread for WinForms control access
-                    _notifyIcon.ContextMenuStrip?.Invoke(() =>
+                    // Marshal to WPF dispatcher (shared UI thread with WinForms in this hybrid app)
+                    // ContextMenuStrip.Invoke can throw if the handle isn't created yet
+                    System.Windows.Application.Current?.Dispatcher.Invoke(() =>
                     {
                         _aiMenuItem.Visible = true;
                     });
@@ -331,6 +332,7 @@ public class TrayApplicationContext : ApplicationContext
             _cts.Cancel();
             _uptimeTimer.Stop();
             _notifyIcon.Icon?.Dispose();
+            _notifyIcon.ContextMenuStrip?.Dispose();
             _notifyIcon.Visible = false;
             _notifyIcon.Dispose();
             _popup?.Close();

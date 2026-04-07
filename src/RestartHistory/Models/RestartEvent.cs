@@ -83,12 +83,4 @@ public class RestartEvent
 
     /// <summary>Timestamp formatted using system regional settings.</summary>
     public string FormattedTimestamp => Timestamp.ToString("d MMM  HH:mm");
-
-    // Keep legacy for any remaining usage
-    public string SeverityIcon => Severity switch
-    {
-        RestartSeverity.Red => "\u274C",
-        RestartSeverity.Yellow => "\u26A0",
-        _ => "\u2705"
-    };
 }
