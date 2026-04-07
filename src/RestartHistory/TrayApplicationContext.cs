@@ -187,11 +187,14 @@ public class TrayApplicationContext : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
 
         var version = typeof(TrayApplicationContext).Assembly.GetName().Version;
-        var versionItem = new ToolStripMenuItem($"v{version?.ToString(3) ?? "1.0.0"}")
+        menu.Items.Add($"v{version?.ToString(3) ?? "1.0.0"} — GitHub", null, (_, _) =>
         {
-            Enabled = false
-        };
-        menu.Items.Add(versionItem);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "https://github.com/jcallaghan/restart-history",
+                UseShellExecute = true
+            });
+        });
 
         menu.Items.Add("Exit", null, (_, _) =>
         {
