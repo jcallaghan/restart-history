@@ -59,7 +59,7 @@ The **History** list shows each restart with a severity dot, timestamp, and caus
 
 ## AI Insights (GitHub Copilot)
 
-Restart History optionally integrates with the [GitHub Copilot SDK](https://www.nuget.org/packages/GitHub.Copilot.SDK) to provide AI-powered analysis of your restart history. This feature is **completely optional** — the app works fully without it.
+Restart History optionally integrates with the [GitHub Copilot SDK](https://github.com/github/copilot-sdk) to provide AI-powered analysis of your restart history. This feature is **completely optional** — the app works fully without it.
 
 ### What it does
 
